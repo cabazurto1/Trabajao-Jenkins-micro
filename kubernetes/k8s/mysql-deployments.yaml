@@ -1,0 +1,107 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mysql-curso
+  namespace: microservices-app
+spec:
+  selector:
+    matchLabels:
+      app: mysql-curso
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app: mysql-curso
+    spec:
+      containers:
+      - image: mysql:latest
+        name: mysql
+        env:
+        - name: MYSQL_ROOT_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: app-secrets
+              key: MYSQL_ROOT_PASSWORD
+        - name: MYSQL_DATABASE
+          valueFrom:
+            configMapKeyRef:
+              name: app-config
+              key: MYSQL_DATABASE_CURSO
+        ports:
+        - containerPort: 3306
+          name: mysql
+        volumeMounts:
+        - name: mysql-curso-persistent-storage
+          mountPath: /var/lib/mysql
+      volumes:
+      - name: mysql-curso-persistent-storage
+        persistentVolumeClaim:
+          claimName: mysql-curso-pvc
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mysql-micro-curso
+  namespace: microservices-app
+spec:
+  ports:
+  - port: 3306
+    targetPort: 3306
+  selector:
+    app: mysql-curso
+  type: ClusterIP
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mysql-estudiante
+  namespace: microservices-app
+spec:
+  selector:
+    matchLabels:
+      app: mysql-estudiante
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app: mysql-estudiante
+    spec:
+      containers:
+      - image: mysql:latest
+        name: mysql
+        env:
+        - name: MYSQL_ROOT_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: app-secrets
+              key: MYSQL_ROOT_PASSWORD
+        - name: MYSQL_DATABASE
+          valueFrom:
+            configMapKeyRef:
+              name: app-config
+              key: MYSQL_DATABASE_ESTUDIANTES
+        ports:
+        - containerPort: 3306
+          name: mysql
+        volumeMounts:
+        - name: mysql-estudiante-persistent-storage
+          mountPath: /var/lib/mysql
+      volumes:
+      - name: mysql-estudiante-persistent-storage
+        persistentVolumeClaim:
+          claimName: mysql-estudiante-pvc
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mysql-micro-estudiante
+  namespace: microservices-app
+spec:
+  ports:
+  - port: 3306
+    targetPort: 3306
+  selector:
+    app: mysql-estudiante
+  type: ClusterIP

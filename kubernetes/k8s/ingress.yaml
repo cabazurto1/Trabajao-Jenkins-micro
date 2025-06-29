@@ -1,0 +1,33 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: microservices-ingress
+  namespace: microservices-app
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
+spec:
+  rules:
+  - host: microservices.local
+    http:
+      paths:
+      - path: /(.*)
+        pathType: Prefix
+        backend:
+          service:
+            name: micro-frontend
+            port:
+              number: 80
+      - path: /api/cursos(/|$)(.*)
+        pathType: Prefix
+        backend:
+          service:
+            name: micro-cursos-app
+            port:
+              number: 8003
+      - path: /api/estudiantes(/|$)(.*)
+        pathType: Prefix
+        backend:
+          service:
+            name: micro-estudiante
+            port:
+              number: 8002

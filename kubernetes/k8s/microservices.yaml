@@ -1,0 +1,97 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: micro-curso
+  namespace: microservices-app
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: micro-curso
+  template:
+    metadata:
+      labels:
+        app: micro-curso
+    spec:
+      containers:
+      - name: micro-curso
+        image: davidrouet/micro-cursos:latest
+        ports:
+        - containerPort: 8003
+        env:
+        - name: SPRING_DATASOURCE_URL
+          value: "jdbc:mysql://mysql-micro-curso:3306/microcursos"
+        - name: SPRING_DATASOURCE_USERNAME
+          value: "root"
+        - name: SPRING_DATASOURCE_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: app-secrets
+              key: MYSQL_ROOT_PASSWORD
+        - name: CORS_ALLOWED_ORIGINS
+          valueFrom:
+            configMapKeyRef:
+              name: app-config
+              key: CORS_ALLOWED_ORIGINS
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: micro-cursos-app
+  namespace: microservices-app
+spec:
+  selector:
+    app: micro-curso
+  ports:
+  - port: 8003
+    targetPort: 8003
+  type: ClusterIP
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: micro-estudiante
+  namespace: microservices-app
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: micro-estudiante
+  template:
+    metadata:
+      labels:
+        app: micro-estudiante
+    spec:
+      containers:
+      - name: micro-estudiante
+        image: davidrouet/micro-estudiantes:latest
+        ports:
+        - containerPort: 8002
+        env:
+        - name: SPRING_DATASOURCE_URL
+          value: "jdbc:mysql://mysql-micro-estudiante:3306/estudiantesCurso"
+        - name: SPRING_DATASOURCE_USERNAME
+          value: "root"
+        - name: SPRING_DATASOURCE_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: app-secrets
+              key: MYSQL_ROOT_PASSWORD
+        - name: CORS_ALLOWED_ORIGINS
+          valueFrom:
+            configMapKeyRef:
+              name: app-config
+              key: CORS_ALLOWED_ORIGINS
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: micro-estudiante
+  namespace: microservices-app
+spec:
+  selector:
+    app: micro-estudiante
+  ports:
+  - port: 8002
+    targetPort: 8002
+  type: ClusterIP
