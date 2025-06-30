@@ -46,18 +46,22 @@ pipeline {
     }
 
     stage('Levantar Dependencias Docker') {
-    steps {
+      steps {
         sh '''
-        echo "🧹 Eliminando contenedores anteriores si existen..."
-        docker rm -f mysql-micro-curso mysql-micro-estudiante || true
-        docker compose up -d mysql-micro-curso mysql-micro-estudiante
-        echo "⌛ Esperando a que las bases de datos estén listas..."
-        sleep 30
+          echo "🧹 Eliminando contenedores anteriores si existen..."
+          docker rm -f mysql-micro-curso mysql-micro-estudiante micro-frontend micro-cursos-app || true
+
+          echo "🚀 Levantando contenedores necesarios para base de datos..."
+          docker compose up -d mysql-micro-curso mysql-micro-estudiante || {
+            echo "❌ Error al levantar contenedores de BD"
+            exit 1
+          }
+
+          echo "⌛ Esperando a que las bases de datos estén listas..."
+          sleep 30
         '''
+      }
     }
-    }
-
-
 
     stage('Compilar Backend') {
       steps {
@@ -94,25 +98,20 @@ pipeline {
             dir('micro-cursos') {
               sh '''
                 echo "=== Tests de micro-cursos ==="
-                # Configurar conexión a MySQL del contenedor
                 export SPRING_DATASOURCE_URL=jdbc:mysql://localhost:${MYSQL_PORT_CURSO}/${MYSQL_DATABASE_CURSO}?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
                 export SPRING_DATASOURCE_USERNAME=root
                 export SPRING_DATASOURCE_PASSWORD=${MYSQL_ROOT_PASSWORD}
                 export SPRING_JPA_HIBERNATE_DDL_AUTO=create-drop
-                
                 ./mvnw test || echo "⚠️ Tests fallaron - verificar configuración de BD"
               '''
             }
-            
             dir('micro-estudiante') {
               sh '''
                 echo "=== Tests de micro-estudiante ==="
-                # Configurar conexión a MySQL del contenedor
                 export SPRING_DATASOURCE_URL=jdbc:mysql://localhost:${MYSQL_PORT_ESTUDIANTES}/${MYSQL_DATABASE_ESTUDIANTES}?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
                 export SPRING_DATASOURCE_USERNAME=root
                 export SPRING_DATASOURCE_PASSWORD=${MYSQL_ROOT_PASSWORD}
                 export SPRING_JPA_HIBERNATE_DDL_AUTO=create-drop
-                
                 ./mvnw test || echo "⚠️ Tests fallaron - verificar configuración de BD"
               '''
             }
@@ -133,32 +132,33 @@ pipeline {
         '''
       }
     }
-    stage('Desplegar Aplicación') {
-      steps {
-        sh '''
-          echo "=== Desplegando aplicación completa ==="
-          
-          # Detener contenedores anteriores si existen
-          docker compose down || true
-          
-          # Levantar toda la aplicación
-          docker compose up -d
-          
-          # Esperar a que todo esté listo
-          sleep 30
-          
-          # Verificar que los contenedores estén corriendo
-          echo "=== Contenedores en ejecución ==="
-          docker ps
-          
-          # Mostrar URLs de acceso
-          echo "=== URLs de acceso ==="
-          echo "Frontend: http://localhost:${FRONTEND_PORT}"
-          echo "API Cursos: http://localhost:${PORT_MICRO_CURSO}"
-          echo "API Estudiantes: http://localhost:${PORT_MICRO_ESTUDIANTE}"
-        '''
+
+stage('Desplegar Aplicación') {
+  steps {
+    sh '''
+      echo "=== Desplegando aplicación completa ==="
+
+      echo "🧼 Forzando eliminación de contenedores en conflicto..."
+      docker ps -a --format '{{.Names}}' | grep -E 'micro-estudiante|micro-cursos-app|micro-frontend|mysql-micro-curso|mysql-micro-estudiante' | xargs -r docker rm -f || true
+
+      echo "⛔ Deteniendo servicios anteriores (docker compose down)..."
+      docker compose down --remove-orphans || true
+
+      echo "🚀 Levantando aplicación completa..."
+      docker compose up -d || {
+        echo "❌ Error al desplegar aplicación completa"
+        exit 1
       }
-    }
+
+      echo "⌛ Esperando que todos los servicios inicien..."
+      sleep 30
+
+      echo "=== Contenedores en ejecución ==="
+      docker ps
+    '''
+  }
+}
+
 
     stage('Push DockerHub (opcional)') {
       when {
@@ -175,12 +175,10 @@ pipeline {
         }
       }
     }
-
   }
 
   post {
     always {
-      sh 'docker compose down || true'
       echo 'Pipeline finalizado.'
     }
     success {
