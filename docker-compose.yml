@@ -39,7 +39,7 @@ services:
       - microservices-network
 
   micro-curso:
-    image: bazurto/micro-cursos:latest
+    image: cabazurto/micro-cursos:latest
     container_name: micro-cursos-app
     ports:
       - "${PORT_MICRO_CURSO}:${PORT_MICRO_CURSO}"
@@ -56,7 +56,7 @@ services:
       - microservices-network
 
   micro-estudiante:
-    image: bazurto/micro-estudiantes:latest
+    image: cabazurto/micro-estudiantes:latest
     container_name: micro-estudiante
     ports:
       - "${PORT_MICRO_ESTUDIANTE}:${PORT_MICRO_ESTUDIANTE}"
@@ -72,7 +72,7 @@ services:
       - microservices-network
 
   frontend:
-    image: bazurto/cursos-micro-frontend:latest
+    image: cabazurto/cursos-micro-frontend:latest
     container_name: micro-frontend
     ports:
       - "${FRONTEND_PORT}:80"

@@ -48,8 +48,16 @@ pipeline {
     stage('Levantar Dependencias Docker') {
       steps {
         sh '''
-          docker compose up -d mysql-micro-curso mysql-micro-estudiante
-          echo "Esperando a que las bases de datos estén listas..."
+          echo "🧹 Eliminando contenedores anteriores si existen..."
+          docker rm -f mysql-micro-curso mysql-micro-estudiante micro-frontend micro-cursos-app || true
+
+          echo "🚀 Levantando contenedores necesarios para base de datos..."
+          docker compose up -d mysql-micro-curso mysql-micro-estudiante || {
+            echo "❌ Error al levantar contenedores de BD"
+            exit 1
+          }
+
+          echo "⌛ Esperando a que las bases de datos estén listas..."
           sleep 30
         '''
       }
@@ -90,25 +98,20 @@ pipeline {
             dir('micro-cursos') {
               sh '''
                 echo "=== Tests de micro-cursos ==="
-                # Configurar conexión a MySQL del contenedor
                 export SPRING_DATASOURCE_URL=jdbc:mysql://localhost:${MYSQL_PORT_CURSO}/${MYSQL_DATABASE_CURSO}?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
                 export SPRING_DATASOURCE_USERNAME=root
                 export SPRING_DATASOURCE_PASSWORD=${MYSQL_ROOT_PASSWORD}
                 export SPRING_JPA_HIBERNATE_DDL_AUTO=create-drop
-                
                 ./mvnw test || echo "⚠️ Tests fallaron - verificar configuración de BD"
               '''
             }
-            
             dir('micro-estudiante') {
               sh '''
                 echo "=== Tests de micro-estudiante ==="
-                # Configurar conexión a MySQL del contenedor
                 export SPRING_DATASOURCE_URL=jdbc:mysql://localhost:${MYSQL_PORT_ESTUDIANTES}/${MYSQL_DATABASE_ESTUDIANTES}?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
                 export SPRING_DATASOURCE_USERNAME=root
                 export SPRING_DATASOURCE_PASSWORD=${MYSQL_ROOT_PASSWORD}
                 export SPRING_JPA_HIBERNATE_DDL_AUTO=create-drop
-                
                 ./mvnw test || echo "⚠️ Tests fallaron - verificar configuración de BD"
               '''
             }
@@ -123,67 +126,84 @@ pipeline {
     stage('Build imágenes Docker') {
       steps {
         sh '''
-          docker build -t bazurto/micro-cursos:latest micro-cursos
-          docker build -t bazurto/micro-estudiante:latest micro-estudiante
-          docker build -t bazurto/cursos-micro-frontend:latest frontend
-        '''
-      }
-    }
-    stage('Desplegar Aplicación') {
-      steps {
-        sh '''
-          echo "=== Desplegando aplicación completa ==="
-          
-          # Detener contenedores anteriores si existen
-          docker compose down || true
-          
-          # Levantar toda la aplicación
-          docker compose up -d
-          
-          # Esperar a que todo esté listo
-          sleep 30
-          
-          # Verificar que los contenedores estén corriendo
-          echo "=== Contenedores en ejecución ==="
-          docker ps
-          
-          # Mostrar URLs de acceso
-          echo "=== URLs de acceso ==="
-          echo "Frontend: http://localhost:${FRONTEND_PORT}"
-          echo "API Cursos: http://localhost:${PORT_MICRO_CURSO}"
-          echo "API Estudiantes: http://localhost:${PORT_MICRO_ESTUDIANTE}"
+          echo "🔨 Construyendo imágenes Docker..."
+          docker build -t cabazurto/micro-cursos:latest micro-cursos
+          docker build -t cabazurto/micro-estudiante:latest micro-estudiante
+          docker build -t cabazurto/cursos-micro-frontend:latest frontend
+          echo "✅ Imágenes construidas exitosamente"
         '''
       }
     }
 
-    stage('Push DockerHub (opcional)') {
-      when {
-        expression { return env.DOCKER_USER && env.DOCKER_PASSWORD }
-      }
+    stage('Push a Docker Hub') {
       steps {
         withCredentials([usernamePassword(credentialsId: 'dockerhub-creds', usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASSWORD')]) {
           sh '''
+            echo "🔐 Autenticando con Docker Hub..."
             echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USER" --password-stdin
-            docker push bazurto/micro-cursos:latest
-            docker push /micro-estudiante:latest
-            docker push davidrouet/cursos-micro-frontend:latest
+            
+            echo "📤 Subiendo imágenes a Docker Hub..."
+            echo "Subiendo micro-cursos..."
+            docker push cabazurto/micro-cursos:latest
+            
+            echo "Subiendo micro-estudiante..."
+            docker push cabazurto/micro-estudiante:latest
+            
+            echo "Subiendo frontend..."
+            docker push cabazurto/cursos-micro-frontend:latest
+            
+            echo "✅ Todas las imágenes subidas exitosamente"
+            docker logout
           '''
         }
       }
     }
 
+    stage('Desplegar Aplicación') {
+      steps {
+        sh '''
+          echo "=== Desplegando aplicación completa ==="
+
+          echo "🧼 Forzando eliminación de contenedores en conflicto..."
+          docker ps -a --format '{{.Names}}' | grep -E 'micro-estudiante|micro-cursos-app|micro-frontend|mysql-micro-curso|mysql-micro-estudiante' | xargs -r docker rm -f || true
+
+          echo "⛔ Deteniendo servicios anteriores (docker compose down)..."
+          docker compose down --remove-orphans || true
+
+          echo "🚀 Levantando aplicación completa..."
+          docker compose up -d || {
+            echo "❌ Error al desplegar aplicación completa"
+            exit 1
+          }
+
+          echo "⌛ Esperando que todos los servicios inicien..."
+          sleep 30
+
+          echo "=== Contenedores en ejecución ==="
+          docker ps
+        '''
+      }
+    }
   }
 
   post {
     always {
-      sh 'docker compose down || true'
-      echo 'Pipeline finalizado.'
+      echo '🏁 Pipeline finalizado.'
+      sh '''
+        echo "=== Estado final de contenedores ==="
+        docker ps
+        echo "=== Imágenes Docker disponibles ==="
+        docker images | grep cabazurto
+      '''
     }
     success {
-      echo '✅ Éxito total.'
+      echo '✅ Pipeline completado exitosamente. Imágenes subidas a Docker Hub.'
     }
     failure {
-      echo '❌ Algo falló.'
+      echo '❌ El pipeline falló. Revisar los logs para más detalles.'
+    }
+    unstable {
+      echo '⚠️ Pipeline completado con advertencias (probablemente tests fallidos).'
     }
   }
 }
