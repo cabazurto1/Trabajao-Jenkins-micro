@@ -1,7 +1,7 @@
 import axios from 'axios';
 
-const IP_BACKEND_CURSOS = 'http://micro-cursos-app:8080';
-const IP_BACKEND_ESTUDIANTES = 'http://micro-estudiante:8080';
+const IP_BACKEND_CURSOS = 'http://localhost:8080';
+const IP_BACKEND_ESTUDIANTES = 'http://localhost:8080';
 
 const BASE_URL_ESTUDIANTES = `${IP_BACKEND_ESTUDIANTES}/api/estudiantes`;
 const BASE_URL_CURSOS = `${IP_BACKEND_CURSOS}/api/cursos`;
