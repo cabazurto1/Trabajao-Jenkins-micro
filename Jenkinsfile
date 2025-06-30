@@ -46,14 +46,18 @@ pipeline {
     }
 
     stage('Levantar Dependencias Docker') {
-      steps {
+    steps {
         sh '''
-          docker compose up -d mysql-micro-curso mysql-micro-estudiante
-          echo "Esperando a que las bases de datos estén listas..."
-          sleep 30
+        echo "🧹 Eliminando contenedores anteriores si existen..."
+        docker rm -f mysql-micro-curso mysql-micro-estudiante || true
+        docker compose up -d mysql-micro-curso mysql-micro-estudiante
+        echo "⌛ Esperando a que las bases de datos estén listas..."
+        sleep 30
         '''
-      }
     }
+    }
+
+
 
     stage('Compilar Backend') {
       steps {
