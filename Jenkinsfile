@@ -123,9 +123,9 @@ pipeline {
     stage('Build imágenes Docker') {
       steps {
         sh '''
-          docker build -t davidrouet/micro-cursos:latest micro-cursos
-          docker build -t davidrouet/micro-estudiante:latest micro-estudiante
-          docker build -t davidrouet/cursos-micro-frontend:latest frontend
+          docker build -t bazurto/micro-cursos:latest micro-cursos
+          docker build -t bazurto/micro-estudiante:latest micro-estudiante
+          docker build -t bazurto/cursos-micro-frontend:latest frontend
         '''
       }
     }
@@ -164,9 +164,9 @@ pipeline {
         withCredentials([usernamePassword(credentialsId: 'dockerhub-creds', usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASSWORD')]) {
           sh '''
             echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USER" --password-stdin
-            docker push davidrouet/micro-cursos:latest
-            docker push davidrouet/micro-estudiante:latest
-            docker push davidrouet/cursos-micro-frontend:latest
+            docker push bazurto/micro-cursos:latest
+            docker push bazurto/micro-estudiante:latest
+            docker push bazurto/cursos-micro-frontend:latest
           '''
         }
       }
