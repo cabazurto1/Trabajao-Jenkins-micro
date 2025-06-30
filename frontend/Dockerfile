@@ -15,6 +15,6 @@ FROM nginx:stable-alpine
 COPY --from=builder /app/dist /usr/share/nginx/html
 
 # Exponer el puerto (para Nginx)
-EXPOSE 80
+EXPOSE 8085
 
 CMD ["nginx", "-g", "daemon off;"]
