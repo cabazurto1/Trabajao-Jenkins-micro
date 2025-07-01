@@ -84,8 +84,17 @@ pipeline {
       steps {
         dir('frontend') {
           sh '''
+            echo "📦 Instalando dependencias del frontend..."
             npm install
+            
+            echo "🔨 Construyendo frontend..."
             npm run build
+            
+            echo "📁 Verificando archivos generados..."
+            ls -la build/ | head -10
+            
+            echo "🏷️ Agregando timestamp al build para verificación..."
+            echo "Build: $(date)" > build/build-info.txt
           '''
         }
       }
@@ -127,9 +136,21 @@ pipeline {
       steps {
         sh '''
           echo "🔨 Construyendo imágenes Docker..."
+          
+          echo "🧹 Eliminando imágenes anteriores para forzar rebuild..."
+          docker rmi cabazurto/micro-cursos:latest || true
+          docker rmi cabazurto/micro-estudiantes:latest || true
+          docker rmi cabazurto/cursos-micro-frontend:latest || true
+          
+          echo "📦 Construyendo micro-cursos..."
           docker build -t cabazurto/micro-cursos:latest micro-cursos
-          docker build -t cabazurto/micro-estudiante:latest micro-estudiante
+          
+          echo "📦 Construyendo micro-estudiantes..."
+          docker build -t cabazurto/micro-estudiantes:latest micro-estudiante
+          
+          echo "📦 Construyendo frontend..."
           docker build -t cabazurto/cursos-micro-frontend:latest frontend
+          
           echo "✅ Imágenes construidas exitosamente"
         '''
       }
@@ -146,8 +167,8 @@ pipeline {
             echo "Subiendo micro-cursos..."
             docker push cabazurto/micro-cursos:latest
             
-            echo "Subiendo micro-estudiante..."
-            docker push cabazurto/micro-estudiante:latest
+            echo "Subiendo micro-estudiantes..."
+            docker push cabazurto/micro-estudiantes:latest
             
             echo "Subiendo frontend..."
             docker push cabazurto/cursos-micro-frontend:latest
@@ -170,8 +191,11 @@ pipeline {
           echo "⛔ Deteniendo servicios anteriores (docker compose down)..."
           docker compose down --remove-orphans || true
 
-          echo "🚀 Levantando aplicación completa..."
-          docker compose up -d || {
+          echo "🔄 IMPORTANTE: NO hacer pull de Docker Hub para usar imágenes locales..."
+          # NO hacemos docker compose pull para usar las imágenes locales recién construidas
+
+          echo "🚀 Levantando aplicación completa con imágenes LOCALES..."
+          docker compose up -d --force-recreate --no-deps || {
             echo "❌ Error al desplegar aplicación completa"
             exit 1
           }
@@ -181,6 +205,32 @@ pipeline {
 
           echo "=== Contenedores en ejecución ==="
           docker ps
+          
+          echo "=== Verificando versión del frontend ==="
+          docker exec micro-frontend cat /usr/share/nginx/html/build-info.txt || echo "No se encontró build-info.txt"
+          
+          echo "=== Verificando que se está usando la imagen local ==="
+          docker inspect micro-frontend --format='{{.Image}}' 
+          docker inspect micro-frontend --format='{{.Created}}'
+        '''
+      }
+    }
+    stage('Verificar Despliegue') {
+      steps {
+        sh '''
+          echo "🔍 Verificando que el frontend se actualizó..."
+          
+          echo "📅 Fecha/hora del contenedor:"
+          docker exec micro-frontend date
+          
+          echo "📁 Verificando contenido del frontend:"
+          docker exec micro-frontend cat /usr/share/nginx/html/build-info.txt || echo "No se encontró build-info.txt"
+          
+          echo "🌐 Probando acceso al frontend:"
+          curl -s http://localhost:${FRONTEND_PORT} | head -20 || echo "No se pudo acceder al frontend"
+          
+          echo "📊 Estado de todos los servicios:"
+          docker compose ps
         '''
       }
     }
