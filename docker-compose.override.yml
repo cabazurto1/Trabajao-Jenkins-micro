@@ -1,16 +1,20 @@
-# docker-compose.override.yml
-# Este archivo se aplica automáticamente sobre docker-compose.yml
-# Fuerza el uso de imágenes locales en lugar de Docker Hub
-
 version: "3.9"
 
 services:
-  # Para frontend, indica que use la imagen local si existe
   frontend:
-    pull_policy: never  # Nunca descarga de Docker Hub, usa local
-    
-  micro-curso:
+    build:
+      context: ./frontend
+    image: cabazurto/cursos-micro-frontend:latest
     pull_policy: never
-    
+
+  micro-curso:
+    build:
+      context: ./micro-cursos
+    image: cabazurto/micro-cursos:latest
+    pull_policy: never
+
   micro-estudiante:
+    build:
+      context: ./micro-estudiante
+    image: cabazurto/micro-estudiante:latest
     pull_policy: never

@@ -23,7 +23,7 @@ export default function App() {
         <div className="nav-container">
           <div className="logo">
             <span className="logo-icon">🎓</span>
-            <span className="logo-text">EduManager ACTULIZADO</span>
+            <span className="logo-text">EduManager ACTULIZADO 2</span>
           </div>
           
           <div className={`menu ${menuOpen ? 'menu-open' : ''}`}>

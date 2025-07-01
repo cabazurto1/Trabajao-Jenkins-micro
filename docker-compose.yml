@@ -57,7 +57,7 @@ services:
 
   micro-estudiante:
     image: cabazurto/micro-estudiantes:latest
-    container_name: micro-estudiante
+    container_name: micro-estudiantes
     ports:
       - "${PORT_MICRO_ESTUDIANTE}:${PORT_MICRO_ESTUDIANTE}"
     environment:
